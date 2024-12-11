@@ -225,7 +225,18 @@ void Device::list()
 void Device::cat(const std::string &filename)
 {
     std::vector<char> text = read(filename);
-    (text.size() > 0)? std::cout << text.data() << "\n\n":std::cout << "There is no text for the file you are searching for.\n";    
+    if(!(text.size() > 0)) 
+    {
+        std::cout << "There is no text for the file you are searching for.\n";
+    }
+    else
+    {
+        for (size_t i = 0; i < text.size(); i++)
+        {
+            std::cout << text[i];
+        }
+        std::cout << "\n";
+    }    
 }
 
 void Device::hexdump(const std::string &filename)
