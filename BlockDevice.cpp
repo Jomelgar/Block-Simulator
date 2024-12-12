@@ -467,8 +467,6 @@ bool Device::write(const std::string &filename, const std::string &text)
 
 bool Device::copy_out(const std::string &f1, const std::string &f2)
 {
-    size_t block = getBlockSize();
-    Inodo i1;
     int64_t o1;
     o1 = searchInodo(f1);
     if(o1 == -1)
@@ -476,8 +474,6 @@ bool Device::copy_out(const std::string &f1, const std::string &f2)
         std::cerr << "One of the two files doesn't exist.\n";
         return false;
     }
-    i1 = getInodo(o1);
-    size_t idx1 = (i1.size%block == 0)? i1.size/block:i1.size/block+1;
     std::fstream out_file(f2, std::ios::out | std::ios::trunc);
 
     std::vector<char> data = read(f1);
@@ -488,15 +484,17 @@ bool Device::copy_out(const std::string &f1, const std::string &f2)
 
 bool Device::copy_in(const std::string &f1, const std::string &f2)
 {
-    size_t block = getBlockSize();
-    Inodo i1, i2;
     int64_t o1 = searchInodo(f1);
-
     if (o1 == -1) {
-        std::cerr << "One of the two files doesn't exist.\n";
+        std::cerr << "The inode doesn't exists.\n";
         return false;
     }
 
+    if(!std::filesystem::exists(f2))
+    {
+        std::cerr << "The file doesn't exists.\n";
+        return false;
+    }
     std::fstream in_file(f2,std::ios::in);
     std::string text;
     in_file.seekg(0,std::ios::end);
@@ -504,6 +502,7 @@ bool Device::copy_in(const std::string &f1, const std::string &f2)
     text.resize(size);
     in_file.seekg(0,std::ios::beg);
     in_file.read(&text[0],size);
+    remove(f1);
     write(f1,text);
     in_file.close();
     return true;

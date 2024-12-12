@@ -112,8 +112,8 @@ void help()
     std::cout << "\n-- cat filename (Use this command for read normally a simulated file in the block simulator you are using)\n";
     std::cout << "\n-- hexdump filename (Use this command for read in hexadecimal a simulated file in the block simulator you are using)\n";
     std::cout << "\n-- cat filename (Use this command for read normally a simulated file in the block simulator you are using)\n";
-    std::cout << "\n-- copy_out filename1 filename2 (Copy simulated filename1 to paste in filename2)\n";
-    std::cout << "\n-- copy_in filename1 filename2 (Copy simulated filename2 to paste in filename1)\n";
+    std::cout << "\n-- copy_out filename1 filename2 (Copy simulated filename1 to paste in the filename2 who is in your system)\n";
+    std::cout << "\n-- copy_in filename1 filename2 (Paste text from filename2 you had in your system to these simulated filename1)\n";
     std::cout << "\n-- rm filename (Remove the simulated file in the block simulator you are using)\n";
     std::cout << "\n-- blocks (See the map of blocks in the simulated file [Only remember that it will not do it if the file is not 'format'])\n";
     std::cout << "\n-- close (Close the file you are executing)\n";
