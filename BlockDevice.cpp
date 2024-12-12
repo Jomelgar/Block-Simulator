@@ -47,6 +47,7 @@ bool Device::create(const std::string &filename, size_t block_size, size_t block
     std::vector<char> data(block_size*block_count,0);
     file.write(data.data(), data.size());
     file.close();
+    file = std::fstream(filename, std::ios::binary | std::ios::in | std::ios::out);
     return true;
 }
 
@@ -467,77 +468,21 @@ bool Device::write(const std::string &filename, const std::string &text)
 bool Device::copy_out(const std::string &f1, const std::string &f2)
 {
     size_t block = getBlockSize();
-    Inodo i1, i2;
-    int64_t o1,o2;
+    Inodo i1;
+    int64_t o1;
     o1 = searchInodo(f1);
-    o2 = searchInodo(f2);
-    if(o1 == -1 || o2 == -1)
+    if(o1 == -1)
     {
         std::cerr << "One of the two files doesn't exist.\n";
         return false;
     }
     i1 = getInodo(o1);
-    i2 = getInodo(o2);
     size_t idx1 = (i1.size%block == 0)? i1.size/block:i1.size/block+1;
-    size_t idx2 = (i2.size%block == 0)? i2.size/block:i2.size/block+1;
+    std::fstream out_file(f2, std::ios::out | std::ios::trunc);
 
-    if (idx1 > idx2) 
-    {
-        const size_t needed = idx1 - idx2;
-        int64_t offsets[needed];
-        int count = 0;
-
-        for (size_t i = getSizeMapBlocks() + getTotalBlocksForInode(); i < getBlockCount() && count < needed; i++) 
-        {
-            if (getStateBlock(i) == 0) 
-            {
-                offsets[count++] = i;
-            }
-        }
-
-        if (count != needed) 
-        {
-            std::cerr << "The amount of blocks required for writing hasn't been collected.\n";
-            return false;
-        }
-
-        for (size_t i = idx2; i < idx2 + needed; i++) 
-        {
-            i2.offset[i] = offsets[i - idx2];
-            bool v = true;
-            file.seekp(2 * sizeof(size_t) + offsets[i - idx2]);
-            file.write(reinterpret_cast<const char*>(&v), sizeof(v));
-        }
-    } 
-    else if (idx2 > idx1) 
-    {
-        for (size_t i = idx1; i < 8; i++) 
-        {
-            if (i2.offset[i] == -1) break;
-            bool v = false;
-            file.seekp(2 * sizeof(size_t) + i2.offset[i]);
-            file.write(reinterpret_cast<const char*>(&v), sizeof(v));
-            i2.offset[i] = -1;
-        }
-    }
-
-
-    for (size_t i = 0; i < idx1; i++)
-    {
-        if (i2.offset[i] == -1 || i1.offset[i] == -1)
-        {
-            bool v = false;
-            file.seekp(2 * sizeof(size_t) + i1.offset[i]);
-            file.write(reinterpret_cast<const char*>(&v), sizeof(v));
-            i2.offset[i] = -1;
-            break;
-        }
-        std::vector<char> text = readBlock(i1.offset[i]);
-        writeBlock(i2.offset[i],text);
-    }
-    
-    i2.size = i1.size;
-    setInodo(o2,i2);
+    std::vector<char> data = read(f1);
+    out_file.write(data.data(),data.size());
+    out_file.close();
     return true;
 }
 
@@ -546,73 +491,21 @@ bool Device::copy_in(const std::string &f1, const std::string &f2)
     size_t block = getBlockSize();
     Inodo i1, i2;
     int64_t o1 = searchInodo(f1);
-    int64_t o2 = searchInodo(f2);
 
-    if (o1 == -1 || o2 == -1) {
+    if (o1 == -1) {
         std::cerr << "One of the two files doesn't exist.\n";
         return false;
     }
 
-    i1 = getInodo(o1);
-    i2 = getInodo(o2);
-
-    size_t idx1 = (i1.size % block == 0) ? i1.size / block : i1.size / block + 1;
-    size_t idx2 = (i2.size % block == 0) ? i2.size / block : i2.size / block + 1;
-
-    if (idx1 > idx2) 
-    {
-        for (size_t i = idx2; i < 8; i++)
-        {
-            if (i1.offset[i] == -1) break;
-            bool v = false;
-            file.seekp(2 * sizeof(size_t) + i1.offset[i]);
-            file.write(reinterpret_cast<const char*>(&v), sizeof(v));
-            i1.offset[i] = -1;
-        }
-    } 
-    else if (idx2 > idx1) 
-    {
-        const size_t needed = idx2 - idx1;
-        int64_t offsets[needed];
-        int count = 0;
-        for (size_t i = getSizeMapBlocks() + getTotalBlocksForInode(); i < getBlockCount() && count < needed; i++)
-        {
-            if (getStateBlock(i) == 0) 
-            {
-                offsets[count++] = i;
-            }
-        }
-
-        if (count != needed) 
-        {
-            std::cerr << "The amount of blocks required for writing hasn't been collected.\n";
-            return false;
-        }
-
-        for (size_t i = idx1; i < idx1 + needed; i++) 
-        {
-            i1.offset[i] = offsets[i - idx1];
-            bool v = true;
-            file.seekp(2 * sizeof(size_t) + offsets[i - idx1]);
-            file.write(reinterpret_cast<const char*>(&v), sizeof(v));
-        }
-    }
-
-    for (size_t i = 0; i < idx2; i++) {
-        if (i2.offset[i] == -1 || i1.offset[i] == -1)
-        {
-            bool v = false;
-            file.seekp(2 * sizeof(size_t) + i1.offset[i]);
-            file.write(reinterpret_cast<const char*>(&v), sizeof(v));
-            i1.offset[i] = -1;
-            break;
-        }
-        std::vector<char> text = readBlock(i2.offset[i]);
-        writeBlock(i1.offset[i], text);
-    }
-
-    i1.size = i2.size;
-    setInodo(o1, i1);
+    std::fstream in_file(f2,std::ios::in);
+    std::string text;
+    in_file.seekg(0,std::ios::end);
+    size_t size = in_file.tellg();
+    text.resize(size);
+    in_file.seekg(0,std::ios::beg);
+    in_file.read(&text[0],size);
+    write(f1,text);
+    in_file.close();
     return true;
 }
 
